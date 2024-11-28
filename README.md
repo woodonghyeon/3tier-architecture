@@ -9,4 +9,4 @@ path </br>
 </br>
 command </br>
 docker compose up --build --detach </br>
-docker compose up docker-compose.yml --build --detach </br>
+docker compose -f docker-compose.yml up --build --detach </br>
