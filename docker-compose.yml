@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      - apache
+    restart: always
+
+  apache:
+    build:
+      context: ./apache
+    depends_on:
+      - mysql
+    restart: always
+
+  mysql:
+    build:
+      context: ./mysql
+    environment:
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_user_password
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: web_test_db
+    restart: always
+

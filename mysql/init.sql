@@ -1,0 +1,7 @@
+CREATE DATABASE IF NOT EXISTS web_test_db;
+USE web_test_db;
+CREATE TABLE IF NOT EXISTS web_test_table (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+);
+
