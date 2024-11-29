@@ -4,4 +4,5 @@ CREATE TABLE IF NOT EXISTS web_test_table (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL
 );
-
+GRANT ALL ON *.* TO 'test_user'@'%';
+FLUSH PRIVILEGES;

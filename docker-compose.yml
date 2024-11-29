@@ -1,9 +1,25 @@
-version: '3.8'
+# version: '3.8' Docker V2부터는 version 표기를 안해도 된다고해서 주석 처리함
+
+networks:
+  app_network:
+    driver: bridge
 
 services:
   nginx:
     build:
       context: ./nginx
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     ports:
       - "8080:80"
     depends_on:
@@ -13,17 +29,72 @@ services:
   apache:
     build:
       context: ./apache
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     depends_on:
       - mysql
-    restart: always
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      restart: always
 
   mysql:
     build:
       context: ./mysql
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "mysql"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     environment:
-      MYSQL_USER: test_user
-      MYSQL_PASSWORD: test_user_password
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: web_test_db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - "3306:3306"
+    volumes:
+      - /mnt/backup:/backup
+      - mysql_data:/var/lib/mysql
     restart: always
 
+  backup:
+    image: mysql:latest
+    networks:
+      - app_network
+    volumes:
+      - /mnt/backup:/backup
+    environment:
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    entrypoint: >
+      sh -c 'sleep 10; 
+              while true; do
+              mysqldump -u${MYSQL_USER} -p${MYSQL_PASSWORD} -h mysql ${MYSQL_DATABASE} > /backup/backup.sql;
+              sleep 300; # second 기준
+              done'
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
