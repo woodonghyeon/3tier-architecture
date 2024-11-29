@@ -1,6 +1,8 @@
 # Simple 3tier-architecture
+테스트 환경</br>
+\# Rocky Linux 9.5</br>
+</br>
 버전</br>
-\# Rocky Linux 9.5
 \# Docker </br>
 \# nginx:latest </br>
 \# php:7.4-apache </br>
