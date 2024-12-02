@@ -5,16 +5,29 @@ networks:
     driver: bridge
 
 services:
+
+  fluentd:
+    image: fluent/fluentd:v1.15
+    networks:
+      - app_network
+    environment:
+      FLUENTD_CONF: "fluentd.conf"
+    volumes:
+      - ./fluentd.conf:/fluentd/etc/fluentd.conf
+    ports:
+      - "24224:24224"
+
   nginx:
     build:
       context: ./nginx
     networks:
       - app_network
     logging:
-      driver: "json-file"
+      driver: "fluentd"
       options:
-        max-size: "10m"
-        max-file: "3"
+        fluentd-address: "fluentd:24224"
+        fluentd-async-connect: "true" # fluentd가 준비되기전 다른 컨테이너가 시작하여 멈추던 오류가 있던걸 얘가 해결해줌
+        tag: "docker.nginx"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
       interval: 10s
@@ -32,10 +45,11 @@ services:
     networks:
       - app_network
     logging:
-      driver: "json-file"
+      driver: "fluentd"
       options:
-        max-size: "10m"
-        max-file: "3"
+        fluentd-address: "fluentd:24224"
+        fluentd-async-connect: "true"
+        tag: "docker.apache"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
       interval: 10s
@@ -56,10 +70,11 @@ services:
     networks:
       - app_network
     logging:
-      driver: "json-file"
+      driver: "fluentd"
       options:
-        max-size: "10m"
-        max-file: "3"
+        fluentd-address: "fluentd:24224"
+        fluentd-async-connect: "true"
+        tag: "docker.mysql"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "mysql"]
       interval: 10s
@@ -91,7 +106,7 @@ services:
       sh -c 'sleep 10; 
               while true; do
               mysqldump -u${MYSQL_USER} -p${MYSQL_PASSWORD} -h mysql ${MYSQL_DATABASE} > /backup/backup.sql;
-              sleep 300; # second 기준
+              sleep 43200; # second 기준(12시간마다 백업)
               done'
     depends_on:
       - mysql
