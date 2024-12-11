@@ -7,6 +7,13 @@
 \# nginx:latest </br>
 \# php:7.4-apache </br>
 \# mysql:8.0 </br>
+\# prometheus:latest</br>
+\# grafana:latest</br>
+\# mysql:latest (backup)</br>
+\# apache-exproter</br>
+\# mysqld-exproter</br>
+\# node-exproter</br>
+\# nginx-prometheus-exproter</br>
 </br>
 경로 </br>
 ./3tier-architecture </br>
