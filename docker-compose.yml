@@ -1,7 +1,9 @@
-# version: '3.8' Docker V2부터는 version 표기를 안해도 된다고해서 주석 처리함
+# version: '3.8' Docker V2부터는 version 표기를 안 해도 된다고 해서 주석 처리함
 
 networks:
   app_network:
+    driver: bridge
+  monitoring_network:
     driver: bridge
 
 services:
@@ -13,9 +15,11 @@ services:
     environment:
       FLUENTD_CONF: "fluentd.conf"
     volumes:
-      - ./fluentd.conf:/fluentd/etc/fluentd.conf
+      - ./fluentd/fluentd.conf:/fluentd/etc/fluentd.conf
+      - /var/log/nginx:/var/log/nginx
     ports:
       - "24224:24224"
+      - "24224:24224/udp"
 
   nginx:
     build:
@@ -37,7 +41,12 @@ services:
       - "8080:80"
     depends_on:
       - apache
+      - fluentd
+      - mysql
     restart: always
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - /var/log/nginx:/var/log/nginx
 
   apache:
     build:
@@ -57,6 +66,8 @@ services:
       retries: 3
     depends_on:
       - mysql
+    env_file:
+      - .env
     environment:
       DB_HOST: ${DB_HOST}
       DB_USER: ${DB_USER}
@@ -80,6 +91,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    env_file:
+      - .env
     environment:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
@@ -88,7 +101,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - /mnt/backup:/backup
+      - ./backup:/backup
       - mysql_data:/var/lib/mysql
     restart: always
 
@@ -97,19 +110,105 @@ services:
     networks:
       - app_network
     volumes:
-      - /mnt/backup:/backup
+      - ./backup:/backup
+    env_file:
+      - .env
     environment:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
     entrypoint: >
-      sh -c 'sleep 10; 
-              while true; do
-              mysqldump -u${MYSQL_USER} -p${MYSQL_PASSWORD} -h mysql ${MYSQL_DATABASE} > /backup/backup.sql;
-              sleep 43200; # second 기준(12시간마다 백업)
-              done'
+      sh -c 'until mysqladmin ping -h mysql --silent; do
+              echo "Waiting for MySQL...";
+              sleep 5;
+            done;
+            mysqldump -u${MYSQL_USER} -p${MYSQL_PASSWORD} -h mysql ${MYSQL_DATABASE} > /backup/backup.sql;
+            sleep 43200;'
     depends_on:
       - mysql
 
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    networks:
+      - app_network
+      - monitoring_network
+    volumes:
+      - ./prometheus/config:/etc/prometheus
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--storage.tsdb.path=/prometheus'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: always
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    networks:
+      - app_network
+      - monitoring_network
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    restart: always
+
+  node_exporter:
+    image: prom/node-exporter
+    container_name: node_exporter
+    networks:
+      - monitoring_network
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    restart: always
+
+  mysql_exporter:
+    image: prom/mysqld-exporter
+    container_name: mysql_exporter
+    environment:
+      DATA_SOURCE_NAME: "${MYSQL_USER}:${MYSQL_PASSWORD}@(${MYSQL_HOST}:3306)/"
+    networks:
+      - monitoring_network
+    ports:
+      - "9104:9104"
+    restart: always
+
+  apache_exporter:
+    image: bitnami/apache-exporter
+    container_name: apache_exporter
+    networks:
+      - monitoring_network
+    ports:
+      - "9117:9117"
+    restart: always
+
+  nginx_exporter:
+    image: nginx/nginx-prometheus-exporter
+    container_name: nginx_exporter
+    networks:
+      - monitoring_network
+    ports:
+      - "9113:9113"
+    command:
+      - -nginx.scrape-uri=http://nginx:8080/stub_status
+    restart: always
+
 volumes:
   mysql_data:
+  prometheus-data:
+  grafana-data:
+
