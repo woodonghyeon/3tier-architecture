@@ -156,8 +156,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - grafana-data:/var/lib/grafana
+      - ./grafana/grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
+    user: root
     depends_on:
       - prometheus
     restart: always
@@ -203,7 +204,7 @@ services:
       - monitoring_network
       - app_network
     command:
-      - --scrape_uri=http://apache:80/server-status
+      - --scrape_uri=http://apache:80/server-status?auto
     ports:
       - "9117:9117"
     depends_on:
