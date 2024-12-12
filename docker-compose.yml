@@ -68,12 +68,16 @@ services:
       - mysql
     env_file:
       - .env
+    volumes:
+      - ./apache/apache-config.conf:/usr/local/apache2/conf/httpd.conf
     environment:
       DB_HOST: ${DB_HOST}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-      restart: always
+    ports:
+      - "80:80"
+    restart: always
 
   mysql:
     build:
@@ -163,6 +167,7 @@ services:
     container_name: node_exporter
     networks:
       - monitoring_network
+      - app_network
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -179,21 +184,30 @@ services:
   mysql_exporter:
     image: prom/mysqld-exporter
     container_name: mysql_exporter
-    environment:
-      DATA_SOURCE_NAME: "${MYSQL_USER}:${MYSQL_PASSWORD}@(${MYSQL_HOST}:3306)/"
     networks:
       - monitoring_network
+      - app_network
+    command:
+      - "--mysqld.username=test_user:testpassword"
+      - "--mysqld.address=mysql:3306"
+    depends_on:
+      - mysql
     ports:
       - "9104:9104"
     restart: always
 
   apache_exporter:
-    image: bitnami/apache-exporter
+    image: bitnami/apache-exporter:latest
     container_name: apache_exporter
     networks:
       - monitoring_network
+      - app_network
+    command:
+      - --scrape_uri=http://apache:80/server-status
     ports:
       - "9117:9117"
+    depends_on:
+      - apache
     restart: always
 
   nginx_exporter:
@@ -201,10 +215,14 @@ services:
     container_name: nginx_exporter
     networks:
       - monitoring_network
+      - app_network
     ports:
       - "9113:9113"
+    depends_on:
+      - nginx
     command:
-      - -nginx.scrape-uri=http://nginx:8080/stub_status
+      - -nginx.scrape-uri
+      - http://nginx:8080/stub_status
     restart: always
 
 volumes:

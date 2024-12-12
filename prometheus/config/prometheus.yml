@@ -26,7 +26,7 @@ scrape_configs:
     scrape_interval: 10s
     scrape_timeout: 10s
     static_configs:
-      - targets: ['mysql:9104']
+      - targets: ['mysql_exporter:9104']
         labels:
           service: 'mysql'
 
@@ -34,7 +34,7 @@ scrape_configs:
     scrape_interval: 10s
     scrape_timeout: 10s
     static_configs:
-      - targets: ['apache:9117']
+      - targets: ['apache_exporter:9117']
         labels:
           service: 'apache'
 
@@ -42,7 +42,7 @@ scrape_configs:
     scrape_interval: 10s
     scrape_timeout: 10s
     static_configs:
-      - targets: ['nginx:9113']
+      - targets: ['nginx_exporter:9113']
         labels:
           service: 'nginx'
 
