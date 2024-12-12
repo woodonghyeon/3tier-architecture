@@ -10,6 +10,7 @@ services:
 
   fluentd:
     image: fluent/fluentd:v1.15
+    container_name: fluentd 
     networks:
       - app_network
     environment:
@@ -24,6 +25,7 @@ services:
   nginx:
     build:
       context: ./nginx
+    container_name: nginx
     networks:
       - app_network
     logging:
@@ -51,6 +53,7 @@ services:
   apache:
     build:
       context: ./apache
+    container_name: apache
     networks:
       - app_network
     logging:
@@ -82,6 +85,7 @@ services:
   mysql:
     build:
       context: ./mysql
+    container_name: mysql
     networks:
       - app_network
     logging:
@@ -111,6 +115,7 @@ services:
 
   backup:
     image: mysql:latest
+    container_name: backup
     networks:
       - app_network
     volumes:
